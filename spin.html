@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ZYNTRAVA • Daily Spin</title>
+<link rel="stylesheet" href="style.css">
+<style>
+.spin-stage{display:grid;place-items:center;padding:30px 10px}
+.wheel-wrap{position:relative;width:min(340px,82vw);aspect-ratio:1}
+.wheel{width:100%;height:100%;border-radius:50%;position:relative;border:10px solid #10243b;background:conic-gradient(#2c4a3e 0 45deg,#d7b56d 45deg 90deg,#244d73 90deg 135deg,#6b4b7a 135deg 180deg,#2c4a3e 180deg 225deg,#d7b56d 225deg 270deg,#244d73 270deg 315deg,#6b4b7a 315deg);box-shadow:0 20px 60px rgba(0,0,0,.35),inset 0 0 30px rgba(255,255,255,.08);transition:transform 3.2s cubic-bezier(.12,.78,.18,1)}
+.wheel:after{content:"Z";position:absolute;inset:37%;display:grid;place-items:center;border-radius:50%;background:#10243b;border:5px solid rgba(255,255,255,.12);font-size:42px;font-weight:900;color:#fff;box-shadow:0 8px 25px rgba(0,0,0,.3);z-index:2}
+.wheel .label{position:absolute;left:50%;top:50%;width:58px;text-align:center;font-size:13px;font-weight:900;color:#fff;text-shadow:0 2px 4px rgba(0,0,0,.55);z-index:1;transform-origin:center}
+.wheel .l1{transform:translate(-50%,-50%) rotate(0deg) translateY(-118px)}
+.wheel .l2{transform:translate(-50%,-50%) rotate(45deg) translateY(-118px) rotate(-45deg)}
+.wheel .l3{transform:translate(-50%,-50%) rotate(90deg) translateY(-118px) rotate(-90deg)}
+.wheel .l4{transform:translate(-50%,-50%) rotate(135deg) translateY(-118px) rotate(-135deg)}
+.wheel .l5{transform:translate(-50%,-50%) rotate(180deg) translateY(-118px) rotate(-180deg)}
+.wheel .l6{transform:translate(-50%,-50%) rotate(225deg) translateY(-118px) rotate(-225deg)}
+.wheel .l7{transform:translate(-50%,-50%) rotate(270deg) translateY(-118px) rotate(-270deg)}
+.wheel .l8{transform:translate(-50%,-50%) rotate(315deg) translateY(-118px) rotate(-315deg)}
+.pointer{position:absolute;top:-4px;left:50%;transform:translateX(-50%);width:0;height:0;border-left:22px solid transparent;border-right:22px solid transparent;border-top:48px solid #f4d78a;filter:drop-shadow(0 5px 5px rgba(0,0,0,.35));z-index:3}
+.spin-result{min-height:52px;text-align:center;font-weight:800;font-size:18px;padding:10px}
+.spin-status{text-align:center;color:var(--muted,#93a4b5);font-size:14px}
+.spin-info{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:18px}
+.spin-info .metric{text-align:center;padding:16px}
+@media(max-width:650px){.spin-info{grid-template-columns:1fr}.wheel-wrap{width:min(300px,84vw)}}
+</style>
+</head>
+<body data-page="spin">
+<div class="app">
+<aside class="sidebar">
+<a class="brand" href="dashboard.html"><div class="orb">Z</div><div><b>ZYNTRAVA</b><small>GLOBAL REWARDS NETWORK</small></div></a>
+<div class="navlabel">PLATFORM</div>
+<a class="navlink" href="dashboard.html">⌂<span>Dashboard</span></a>
+<a class="navlink" href="tasks.html">✓<span>Tasks</span></a>
+<a class="navlink" href="daily.html">☀<span>Daily Rewards</span></a>
+<a class="navlink" href="wallet.html">▣<span>Wallet</span></a>
+<a class="navlink" href="withdraw.html">↗<span>Withdraw</span></a>
+<a class="navlink" href="referrals.html">♧<span>Referrals</span></a>
+<a class="navlink" href="leaderboard.html">♕<span>Leaderboard</span></a>
+<a class="navlink" href="notifications.html">🔔<span>Notifications</span></a>
+<a class="navlink" href="profile.html">👤<span>Profile</span></a>
+<a class="navlink" href="settings.html">⚙<span>Settings</span></a>
+<a class="navlink" href="support.html">?<span>Support</span></a>
+<div class="sidebottom"><a class="community" href="https://t.me/ZyntravaOfficial" target="_blank"><b>📢 ZYNTRAVA OFFICIAL</b>Join our official community</a></div>
+</aside>
+
+<main>
+<header class="top">
+<div><div class="eyebrow">✦ DAILY PROMOTIONAL EVENT</div><h1>Daily Spin</h1></div>
+<div class="topactions"><button class="iconbtn" onclick="document.documentElement.classList.toggle('mute')">🔊</button><a class="avatarbtn" href="profile.html">👤 <span data-user>Member</span></a></div>
+</header>
+
+<section class="card hero">
+<div class="tag">SERVER-VERIFIED</div>
+<h2>One secure spin per day.</h2>
+<p>Rewards, daily limits and wallet credits are verified by the platform API. The result is recorded in your transaction history automatically.</p>
+
+<div class="spin-stage">
+<div class="wheel-wrap">
+<div class="pointer"></div>
+<div id="wheel" class="wheel">
+  <span class="label l1">2 pts</span>
+  <span class="label l2">5 pts</span>
+  <span class="label l3">10 pts</span>
+  <span class="label l4">3 pts</span>
+  <span class="label l5">15 pts</span>
+  <span class="label l6">4 pts</span>
+  <span class="label l7">8 pts</span>
+  <span class="label l8">6 pts</span>
+</div>
+</div>
+</div>
+
+<div id="spinResult" class="spin-result">Your daily spin is ready.</div>
+<div id="spinStatus" class="spin-status">Checking your account status…</div>
+
+<div style="text-align:center;margin-top:18px">
+<button id="spinBtn" class="btn secondary" onclick="secureSpin()">Spin Now</button>
+</div>
+</section>
+
+<section class="spin-info">
+<div class="card metric"><small>LIMIT</small><b>1</b><span class="muted">Spin per day</span></div>
+<div class="card metric"><small>REWARDS</small><b>2–15</b><span class="muted">Platform points</span></div>
+<div class="card metric"><small>SECURITY</small><b>API</b><span class="muted">Server verified</span></div>
+</section>
+
+<div class="footer">© 2026 ZYNTRAVA • <a href="https://t.me/ZyntravaOfficial" target="_blank">Official Channel</a> • <a href="https://t.me/Zyntrava" target="_blank">Support @Zyntrava</a></div>
+</main>
+</div>
+
+<nav class="mobile">
+<a href="dashboard.html"><i>⌂</i>Home</a><a href="tasks.html"><i>✓</i>Tasks</a><a href="wallet.html"><i>▣</i>Wallet</a><a href="profile.html"><i>👤</i>Profile</a>
+</nav>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-database-compat.js"></script>
+<script src="firebase-config.js"></script>
+<script src="sound-engine.js"></script>
+<script src="app.js"></script>
+
+<script>
+let spinning=false;
+
+function todayKey(){return new Date().toISOString().slice(0,10)}
+
+async function refreshSpinState(){
+  const status=document.getElementById('spinStatus');
+  const btn=document.getElementById('spinBtn');
+  if(!window.ZDB || !window.Z?.uid){ status.textContent='Loading account…'; return; }
+  try{
+    const snap=await ZDB.ref('users/'+Z.uid+'/lastSpin').once('value');
+    if(snap.val()===todayKey()){
+      status.textContent='Today’s spin has already been used. Come back after the next daily reset.';
+      btn.disabled=true;
+      btn.textContent='Spin Used Today';
+      document.getElementById('spinResult').textContent='Daily limit reached ✓';
+    }else{
+      status.textContent='Your secure daily spin is available.';
+      btn.disabled=false;
+    }
+  }catch(e){status.textContent='Unable to verify spin status.'}
+}
+
+async function secureSpin(){
+  if(spinning)return;
+  const btn=document.getElementById('spinBtn');
+  const wheel=document.getElementById('wheel');
+  const result=document.getElementById('spinResult');
+  const status=document.getElementById('spinStatus');
+
+  spinning=true; btn.disabled=true; btn.textContent='Spinning…';
+  result.textContent='Reward is being verified securely…';
+  status.textContent='Please wait while the platform processes your spin.';
+  sound('click');
+
+  const randomTurns=1440+Math.floor(Math.random()*1080);
+  wheel.style.transform='rotate('+randomTurns+'deg)';
+
+  try{
+    const d=await api('spin');
+    await new Promise(r=>setTimeout(r,3200));
+    sound('coin');
+    result.textContent='🎉 You won +'+fmt(d.reward)+' points!';
+    status.textContent='Reward credited to your wallet and recorded in transactions.';
+    btn.textContent='Spin Used Today';
+    if(window.ZDB&&Z.uid) ZDB.ref('users/'+Z.uid+'/lastSpin').once('value').then(()=>{});
+  }catch(e){
+    wheel.style.transform='rotate(0deg)';
+    result.textContent='Spin unavailable';
+    status.textContent=e.message||'Please try again later.';
+    btn.disabled=false;
+    btn.textContent='Spin Now';
+    sound('error');
+  }finally{
+    spinning=false;
+  }
+}
+
+document.addEventListener('DOMContentLoaded',()=>{
+  setTimeout(refreshSpinState,900);
+});
+</script>
+</body>
+</html>
