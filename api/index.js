@@ -107,54 +107,14 @@ const handlers = {
   async 'task-submit'(req, res) {
     const u = await auth(req), { taskId, proof } = req.body || {};
     if (!taskId || !String(proof || '').trim()) throw Object.assign(new Error('Task and proof are required'), { status: 400 });
-
-    const [ts, us, existingMap] = await Promise.all([
-      db().ref('tasks/' + taskId).once('value'),
-      db().ref('users/' + u.uid).once('value'),
-      db().ref('taskSubmissions/' + u.uid + '/' + taskId).once('value')
-    ]);
-
+    const [ts, us] = await Promise.all([db().ref('tasks/' + taskId).once('value'), db().ref('users/' + u.uid).once('value')]);
     const task = ts.val(), profile = us.val() || {};
     if (!task || task.status !== 'active') throw Object.assign(new Error('Task is not available'), { status: 404 });
-    if (Array.isArray(task.countries) && task.countries.length && !task.countries.includes(profile.countryCode)) {
-      throw Object.assign(new Error('Task is not available in your country'), { status: 403 });
-    }
-
-    if (existingMap.exists()) {
-      const previousId = existingMap.val();
-      const previous = (await db().ref('submissions/' + previousId).once('value')).val();
-      if (previous && previous.status !== 'rejected') {
-        throw Object.assign(new Error(previous.status === 'approved' ? 'This task has already been approved for your account' : 'This task is already pending review'), { status: 409 });
-      }
-    }
-
+    if (Array.isArray(task.countries) && task.countries.length && !task.countries.includes(profile.countryCode)) throw Object.assign(new Error('Task is not available in your country'), { status: 403 });
+    if ((await db().ref('taskSubmissions/' + u.uid + '/' + taskId).once('value')).exists()) throw Object.assign(new Error('You already submitted this task'), { status: 409 });
     const id = db().ref('submissions').push().key;
-    const data = {
-      id,
-      taskId,
-      uid: u.uid,
-      memberId: profile.memberId || '',
-      title: task.title,
-      rewardPoints: Number(task.rewardPoints || 0),
-      proof: String(proof).trim().slice(0, 5000),
-      status: 'pending',
-      createdAt: admin.database.ServerValue.TIMESTAMP
-    };
-
-    await db().ref().update({
-      ['submissions/' + id]: data,
-      ['taskSubmissions/' + u.uid + '/' + taskId]: id
-    });
-
-    await addLedger(u.uid, {
-      type: 'task-submission',
-      amount: Number(task.rewardPoints || 0),
-      direction: 'credit',
-      status: 'pending',
-      description: `Pending verification: ${task.title}`,
-      submissionId: id
-    });
-
+    const data = { id, taskId, uid: u.uid, memberId: profile.memberId || '', title: task.title, rewardPoints: Number(task.rewardPoints || 0), proof: String(proof).trim(), status: 'pending', createdAt: admin.database.ServerValue.TIMESTAMP };
+    await db().ref().update({ ['submissions/' + id]: data, ['taskSubmissions/' + u.uid + '/' + taskId]: id });
     await addNotification(u.uid, 'Task submitted', `Your submission for “${task.title}” is pending review.`, 'task');
     return send(res, 200, { ok: true, id });
   },
@@ -206,8 +166,19 @@ const handlers = {
 
   async 'admin-dashboard'(req, res) {
     const a = await auth(req); requireAdmin(a);
-    const [w, s, u] = await Promise.all([db().ref('withdrawals').once('value'), db().ref('submissions').once('value'), db().ref('users').once('value')]);
-    return send(res, 200, { ok: true, withdrawals: Object.values(w.val() || {}), submissions: Object.values(s.val() || {}), userCount: Object.keys(u.val() || {}).length });
+    const [w, s, u, t] = await Promise.all([
+      db().ref('withdrawals').once('value'),
+      db().ref('submissions').once('value'),
+      db().ref('users').once('value'),
+      db().ref('tasks').once('value')
+    ]);
+    return send(res, 200, {
+      ok: true,
+      withdrawals: Object.values(w.val() || {}),
+      submissions: Object.values(s.val() || {}),
+      tasks: Object.values(t.val() || {}),
+      userCount: Object.keys(u.val() || {}).length
+    });
   },
 
   async 'admin-create-task'(req, res) {
@@ -218,95 +189,34 @@ const handlers = {
     return send(res, 200, { ok: true, id: ref.key });
   },
 
-  async 'admin-task-status'(req, res) {
+  async 'admin-update-task'(req, res) {
     const a = await auth(req); requireAdmin(a);
-    const { id, status, note } = req.body || {};
-    if (!id || !['approved', 'rejected'].includes(status)) throw Object.assign(new Error('Invalid request'), { status: 400 });
-
-    const ref = db().ref('submissions/' + id);
-    const before = (await ref.once('value')).val();
-    if (!before) throw Object.assign(new Error('Submission not found'), { status: 404 });
-    if (before.status === 'approved' || before.status === 'rejected') {
-      if (before.status !== status) throw Object.assign(new Error('Submission was already finalized'), { status: 409 });
-    } else if (before.status !== 'pending') {
-      throw Object.assign(new Error('Submission cannot be reviewed'), { status: 409 });
-    } else {
-      await ref.update({
-        status,
-        reviewNote: String(note || '').slice(0, 1000),
-        reviewedBy: a.uid,
-        reviewedAt: admin.database.ServerValue.TIMESTAMP
-      });
+    const { id, status } = req.body || {};
+    if (!id || !['active', 'paused', 'ended'].includes(status)) {
+      throw Object.assign(new Error('Invalid opportunity status'), { status: 400 });
     }
+    const ref = db().ref('tasks/' + id);
+    const s = await ref.once('value');
+    if (!s.exists()) throw Object.assign(new Error('Opportunity not found'), { status: 404 });
+    await ref.update({ status, updatedAt: Date.now(), updatedBy: a.uid });
+    return send(res, 200, { ok: true, status });
+  },
 
-    const item = (await ref.once('value')).val() || before;
-
+  async 'admin-task-status'(req, res) {
+    const a = await auth(req); requireAdmin(a); const { id, status, note } = req.body || {};
+    if (!id || !['approved', 'rejected'].includes(status)) throw Object.assign(new Error('Invalid request'), { status: 400 });
+    const ref = db().ref('submissions/' + id); let item = null;
+    const r = await ref.transaction(x => { if (!x || x.status !== 'pending') return; x.status = status; x.reviewNote = String(note || ''); x.reviewedBy = a.uid; x.reviewedAt = Date.now(); item = x; return x; });
+    if (!r.committed || !item) throw Object.assign(new Error('Submission was already reviewed'), { status: 409 });
     if (status === 'approved') {
       const reward = Number(item.rewardPoints || 0);
-      if (!Number.isFinite(reward) || reward <= 0) throw Object.assign(new Error('Invalid task reward'), { status: 400 });
-
-      let creditedNow = false;
-      const userRef = db().ref('users/' + item.uid);
-      const creditResult = await userRef.transaction(p => {
-        if (!p) return;
-        p.processedTaskRewards = p.processedTaskRewards || {};
-        if (p.processedTaskRewards[id]) return;
-        p.points = (p.points || 0) + reward;
-        p.earnedPoints = (p.earnedPoints || 0) + reward;
-        p.processedTaskRewards[id] = true;
-        creditedNow = true;
-        return p;
-      });
-
-      const profile = creditResult.snapshot.val() || {};
-      await db().ref('publicProfiles/' + item.uid).update({
-        displayName: profile.displayName || 'Member',
-        countryCode: profile.countryCode || 'Global',
-        earnedPoints: profile.earnedPoints || 0
-      });
-
-      // Deterministic records make approval retries safe: no duplicate rewards or transactions.
-      const transactionId = 'task_' + id;
-      await db().ref('transactions/' + item.uid + '/' + transactionId).set({
-        id: transactionId,
-        type: 'task',
-        amount: reward,
-        direction: 'credit',
-        status: 'completed',
-        description: `Approved: ${item.title}`,
-        submissionId: id,
-        createdAt: admin.database.ServerValue.TIMESTAMP
-      });
-
-      await db().ref('notifications/' + item.uid + '/task_' + id).set({
-        id: 'task_' + id,
-        title: 'Task approved',
-        message: `+${reward} points added for “${item.title}”.`,
-        type: 'reward',
-        read: false,
-        createdAt: admin.database.ServerValue.TIMESTAMP
-      });
-
-      await ref.update({
-        rewardCredited: true,
-        rewardCreditedAt: admin.database.ServerValue.TIMESTAMP,
-        rewardAmount: reward,
-        creditedBy: a.uid
-      });
-
-      return send(res, 200, { ok: true, creditedNow, reward });
-    }
-
-    await db().ref('notifications/' + item.uid + '/task_' + id).set({
-      id: 'task_' + id,
-      title: 'Task rejected',
-      message: `Your submission for “${item.title}” was rejected.${note ? ' ' + String(note).slice(0, 1000) : ''}`,
-      type: 'task',
-      read: false,
-      createdAt: admin.database.ServerValue.TIMESTAMP
-    });
-
-    return send(res, 200, { ok: true, rejected: true });
+      await db().ref('users/' + item.uid).transaction(p => { if (!p) return; p.points = (p.points || 0) + reward; p.earnedPoints = (p.earnedPoints || 0) + reward; return p; });
+      const profile = (await db().ref('users/' + item.uid).once('value')).val() || {};
+      await db().ref('publicProfiles/' + item.uid).update({ displayName: profile.displayName || 'Member', countryCode: profile.countryCode || 'Global', earnedPoints: profile.earnedPoints || 0 });
+      await addLedger(item.uid, { type: 'task', amount: reward, direction: 'credit', status: 'completed', description: `Approved: ${item.title}`, submissionId: id });
+      await addNotification(item.uid, 'Task approved', `+${reward} points added for “${item.title}”.`, 'reward');
+    } else await addNotification(item.uid, 'Task rejected', `Your submission for “${item.title}” was rejected.${note ? ' ' + note : ''}`, 'task');
+    return send(res, 200, { ok: true });
   },
 
   async 'admin-withdraw-status'(req, res) {
