@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ZYNTRAVA • CPX Surveys</title>
+<link rel="stylesheet" href="style.css">
+<style>
+.survey-shell{max-width:1180px;margin:0 auto}.survey-head{display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap;margin-bottom:16px}.survey-box{background:#fff;border:1px solid rgba(0,0,0,.08);border-radius:18px;overflow:hidden;min-height:760px;box-shadow:0 18px 50px rgba(0,0,0,.08)}#fullscreen{width:100%;min-height:760px}.secure-note{margin-top:12px;font-size:13px}.backbtn{display:inline-flex;align-items:center;gap:8px}.cpx-loading{padding:40px;text-align:center;color:#64748b}
+</style>
+</head>
+<body data-page="cpx">
+<div class="app">
+<aside class="sidebar">
+<a class="brand" href="dashboard.html"><div class="orb">Z</div><div><b>ZYNTRAVA</b><small>GLOBAL REWARDS NETWORK</small></div></a>
+<div class="navlabel">PLATFORM</div>
+<a class="navlink" href="dashboard.html">⌂<span>Dashboard</span></a>
+<a class="navlink active" href="cpx.html">◈<span>Surveys</span></a>
+<a class="navlink" href="tasks.html">✓<span>Tasks</span></a>
+<a class="navlink" href="daily.html">☀<span>Daily Rewards</span></a>
+<a class="navlink" href="spin.html">◉<span>Daily Spin</span></a>
+<a class="navlink" href="wallet.html">▣<span>Wallet</span></a>
+<a class="navlink" href="withdraw.html">↗<span>Withdraw</span></a>
+<a class="navlink" href="referrals.html">♧<span>Referrals</span></a>
+<a class="navlink" href="leaderboard.html">♕<span>Leaderboard</span></a>
+<a class="navlink" href="notifications.html">🔔<span>Notifications</span></a>
+<a class="navlink" href="settings.html">⚙<span>Settings</span></a>
+<a class="navlink" href="support.html">?<span>Support</span></a>
+<a class="navlink" href="profile.html">👤<span>Profile</span></a>
+<div class="sidebottom"><a class="community" href="https://t.me/ZyntravaOfficial" target="_blank"><b>📢 ZYNTRAVA OFFICIAL</b>Join our official community</a></div>
+</aside>
+<main>
+<header class="top"><div><div class="eyebrow">✦ VERIFIED SURVEYS</div><h1>CPX Research</h1></div><div class="topactions"><button class="iconbtn" onclick="document.documentElement.classList.toggle('mute')">🔊</button><a class="avatarbtn" href="profile.html">👤 <span data-user>Member</span></a></div></header>
+<div class="survey-shell">
+<div class="notice"><b>Earn ZN from verified surveys.</b> Complete an eligible CPX Research survey and CPX will verify the completion before the reward is credited to your Zyntrava account.</div>
+<div class="survey-head"><div><h2 style="margin:0">Available surveys</h2><p class="muted" style="margin:5px 0 0">Your survey profile is matched using your Zyntrava account ID.</p></div><a class="btn ghost backbtn" href="tasks.html">← Earn Center</a></div>
+<div class="survey-box">
+  <div id="fullscreen"><div class="cpx-loading">Loading verified surveys…</div></div>
+</div>
+<p class="muted secure-note">CPX App ID: 35839 • Rewards are credited only from verified CPX postbacks.</p>
+</div>
+<div class="footer">© 2026 ZYNTRAVA • <a href="https://t.me/ZyntravaOfficial" target="_blank">Official Channel</a></div>
+</main></div>
+<nav class="mobile"><a href="dashboard.html"><i>⌂</i>Home</a><a href="cpx.html"><i>◈</i>Surveys</a><a href="wallet.html"><i>▣</i>Wallet</a><a href="profile.html"><i>👤</i>Profile</a></nav>
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-database-compat.js"></script>
+<script src="firebase-config.js"></script>
+<script src="sound-engine.js"></script>
+<script src="app.js"></script>
+<script>
+(async function () {
+  const host = document.getElementById('fullscreen');
+
+  function showError(message) {
+    host.innerHTML =
+      '<div style="padding:40px;text-align:center">' +
+      '<h3>Surveys temporarily unavailable</h3>' +
+      '<p class="muted">' + message + '</p>' +
+      '</div>';
+  }
+
+  try {
+    let tries = 0;
+    while ((!window.Z || !Z.user) && tries < 100) {
+      await new Promise(r => setTimeout(r, 200));
+      tries++;
+    }
+
+    if (!window.Z || !Z.user) {
+      throw new Error('User session is not ready.');
+    }
+
+    const u = Z.user;
+
+    // Ask the authenticated Zyntrava backend for the CPX URL.
+    // The backend creates the secure hash; the private CPX secret never
+    // reaches the browser.
+    const token = await u.getIdToken();
+
+    const response = await fetch('/api?action=cpx-frame', {
+      method: 'POST',
+      headers: {
+        'Authorization': 'Bearer ' + token,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    const data = await response.json();
+
+    if (!response.ok || !data.ok || !data.url) {
+      throw new Error(data.error || 'CPX connection could not be created.');
+    }
+
+    // Use the exact server-generated CPX URL.
+    // This avoids generating the secure hash inside cpx.html.
+    host.innerHTML =
+      '<iframe id="cpxFrame" ' +
+      'style="width:100%;height:760px;border:0;display:block;background:#fff" ' +
+      'frameborder="0" scrolling="yes" ' +
+      'allow="fullscreen" ' +
+      'referrerpolicy="strict-origin-when-cross-origin"></iframe>';
+
+    const frame = document.getElementById('cpxFrame');
+
+    frame.onload = function () {
+      console.log('CPX iframe loaded');
+    };
+
+    frame.onerror = function () {
+      console.error('CPX iframe failed to load');
+      showError('CPX survey service could not be displayed.');
+    };
+
+    frame.src = data.url;
+
+  } catch (e) {
+    console.error('CPX initialization error:', e);
+    showError(e.message || 'Please refresh and try again.');
+  }
+})();
+</script>
+</body>
+</html>
