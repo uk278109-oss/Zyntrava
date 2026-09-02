@@ -1,8 +1,0 @@
-{
-  "name": "zyntrava-rewards",
-  "private": true,
-  "version": "3.0.0",
-  "description": "Zyntrava Rewards secure Vercel API layer",
-  "dependencies": {"firebase-admin": "^13.0.2"},
-  "engines": {"node": "20.x"}
-}
