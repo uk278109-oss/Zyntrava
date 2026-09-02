@@ -1,0 +1,35 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>ZYNTRAVA • Tasks</title><link rel="stylesheet" href="style.css"></head><body data-page="tasks"><div class="app"><aside class="sidebar"><a class="brand" href="dashboard.html"><div class="orb">Z</div><div><b>ZYNTRAVA</b><small>GLOBAL REWARDS NETWORK</small></div></a><div class="navlabel">PLATFORM</div><a class="navlink " href="dashboard.html">⌂<span>Dashboard</span></a><a class="navlink active" href="tasks.html">✓<span>Tasks</span></a><a class="navlink " href="daily.html">☀<span>Daily Rewards</span></a><a class="navlink " href="spin.html">◉<span>Daily Spin</span></a><a class="navlink " href="wallet.html">▣<span>Wallet</span></a><a class="navlink " href="withdraw.html">↗<span>Withdraw</span></a><a class="navlink " href="referrals.html">♧<span>Referrals</span></a><a class="navlink " href="leaderboard.html">♕<span>Leaderboard</span></a><a class="navlink " href="notifications.html">🔔<span>Notifications</span></a><a class="navlink " href="profile.html">👤<span>Profile</span></a><a class="navlink " href="settings.html">⚙<span>Settings</span></a><a class="navlink " href="support.html">?<span>Support</span></a><div class="sidebottom"><a class="community" href="https://t.me/ZyntravaOfficial" target="_blank"><b>📢 ZYNTRAVA OFFICIAL</b>Join our official community</a></div></aside><main><header class="top"><div><div class="eyebrow">✦ VERIFIED OPPORTUNITIES</div><h1>Earn Center</h1></div><div class="topactions"><button class="iconbtn" onclick="document.documentElement.classList.toggle('mute')">🔊</button><a class="avatarbtn" href="profile.html">👤 <span data-user>Member</span></a></div></header><div class="notice">Complete verified opportunities, submit the required proof, and earn ZN after approval. Your submission status is tracked automatically.</div><div class="card" style="margin:18px 0;display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap"><div><div class="eyebrow">✦ PARTNER SURVEYS</div><h2 style="margin:4px 0">CPX Research Surveys</h2><p class="muted" style="margin:0">Verified survey opportunities with rewards credited through secure server-side postbacks.</p></div><a class="btn" href="cpx.html">Open Surveys →</a></div><div class="sectionhead"><h2>Available opportunities</h2><span class="tag">LIVE DATA</span></div><div id="taskList" class="grid grid3"><div class="empty">Loading verified opportunities…</div></div><div class="footer">© 2026 ZYNTRAVA • <a href="https://t.me/ZyntravaOfficial" target="_blank">Official Channel</a> • <a href="https://t.me/Zyntrava" target="_blank">Support @Zyntrava</a></div></main></div>
+<div id="proofModal" class="proof-modal" hidden>
+  <div class="proof-card card">
+    <button class="modal-close" onclick="closeProofModal()">×</button>
+    <div class="eyebrow">TASK VERIFICATION</div>
+    <h2 id="proofTaskTitle">Submit completion</h2>
+    <p id="proofTaskInstructions" class="muted"></p>
+    <div class="field"><label>Proof / completion link</label><textarea id="proofValue" rows="5" placeholder="Paste your proof, username, screenshot link, order/reference ID, or completion details."></textarea></div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap"><button class="btn" id="proofSubmitBtn">Submit for verification</button><button class="btn ghost" onclick="closeProofModal()">Cancel</button></div>
+    <p class="muted" style="margin-top:12px">Rewards are credited only after platform verification.</p>
+  </div>
+</div>
+<style>
+.proof-modal{position:fixed;inset:0;z-index:9999;background:rgba(3,7,18,.72);backdrop-filter:blur(10px);display:grid;place-items:center;padding:18px}.proof-modal[hidden]{display:none!important}.proof-card{width:min(560px,100%);position:relative}.modal-close{position:absolute;right:14px;top:10px;border:0;background:transparent;color:inherit;font-size:28px;cursor:pointer}
+</style>
+<nav class="mobile"><a href="dashboard.html"><i>⌂</i>Home</a><a href="tasks.html"><i>✓</i>Tasks</a><a href="wallet.html"><i>▣</i>Wallet</a><a href="profile.html"><i>👤</i>Profile</a></nav><script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script><script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script><script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-database-compat.js"></script><script src="firebase-config.js"></script><script src="sound-engine.js"></script><script src="app.js"></script>
+<script>
+let __activeTask=null;
+window.startTask=async function(id){
+  const s=await ZDB.ref('tasks/'+id).once('value'); const t=s.val();
+  if(!t){toast('Task unavailable');return}
+  __activeTask={id,...t};
+  document.getElementById('proofTaskTitle').textContent=t.title||'Submit completion';
+  document.getElementById('proofTaskInstructions').textContent=t.instructions||'Provide the required proof.';
+  document.getElementById('proofValue').value='';
+  document.getElementById('proofModal').hidden=false;
+};
+window.closeProofModal=function(){document.getElementById('proofModal').hidden=true;__activeTask=null};
+document.getElementById('proofSubmitBtn').onclick=async()=>{
+  const proof=document.getElementById('proofValue').value.trim();
+  if(!__activeTask||!proof){toast('Please add completion proof');return}
+  const b=document.getElementById('proofSubmitBtn'); b.disabled=true; b.textContent='Submitting…';
+  try{if(__activeTask.url)window.open(__activeTask.url,'_blank','noopener');await api('task-submit',{taskId:__activeTask.id,proof});sound('success');closeProofModal();toast('Submitted successfully. Status: Pending verification.');loadTasks()}catch(e){toast(e.message)}finally{b.disabled=false;b.textContent='Submit for verification'}
+};
+</script></body></html>

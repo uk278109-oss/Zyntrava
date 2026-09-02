@@ -1,0 +1,9 @@
+{
+  "name": "zyntrava",
+  "version": "1.0.0",
+  "private": true,
+  "engines": { "node": "24.x" },
+  "dependencies": {
+    "firebase-admin": "^13.4.0"
+  }
+}
