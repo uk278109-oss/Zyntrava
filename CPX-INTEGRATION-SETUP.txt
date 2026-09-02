@@ -1,0 +1,40 @@
+ZYNTRAVA — CPX RESEARCH INTEGRATION
+
+CPX App ID
+35839
+
+1) Vercel Environment Variable
+Add:
+CPX_SECURE_HASH = <the secure hash shown by CPX for the Zyntrava app>
+
+Do NOT put this value in HTML, app.js, or GitHub.
+
+2) CPX Main Postback URL
+Paste this exact URL into CPX Research → Apps → Zyntrava → Postback Settings → Main Postback URL:
+
+https://zyntrava.vercel.app/api?action=cpx-postback&status={status}&trans_id={trans_id}&user_id={user_id}&amount_local={amount_local}&amount_usd={amount_usd}&ip_click={ip_click}&secure_hash={secure_hash}&type={type}&offer_id={OfferID}
+
+3) Postback expert fields
+Leave these blank for now:
+- Postback Url Screen Out
+- Postback Bonus/Rating
+- Postback Url Event Canceled
+
+The main postback handler accepts status=1 (completed) and status=2 (canceled/reversal). It uses the CPX transaction ID for idempotency and reverses a previously credited reward if CPX later sends a cancellation.
+
+4) ZN conversion
+The CPX app is configured to use ZN as its virtual currency. The current CPX currency factor is 700 ZN per 1 USD of publisher payout, and bonus factor is 700.
+
+5) Survey page
+Users can open cpx.html from the Earn Center. The page passes the stable Firebase UID as CPX ext_user_id. CPX requires this external user ID to remain stable for the same user.
+
+6) After deployment
+- Add CPX_SECURE_HASH to Vercel Environment Variables.
+- Redeploy.
+- Return to CPX Postback Settings.
+- Paste the URL above.
+- Save.
+- Use CPX's test-postback tool if available.
+
+Official CPX documentation:
+https://cpx-research.com/main/en/doc.php
