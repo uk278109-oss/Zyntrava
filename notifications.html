@@ -1,0 +1,24 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>ZYNTRAVA • Notifications</title><link rel="stylesheet" href="style.css"></head><body data-page="notifications"><div class="app"><aside class="sidebar"><a class="brand" href="dashboard.html"><div class="orb">Z</div><div><b>ZYNTRAVA</b><small>GLOBAL REWARDS NETWORK</small></div></a><div class="navlabel">PLATFORM</div><a class="navlink " href="dashboard.html">⌂<span>Dashboard</span></a><a class="navlink " href="tasks.html">✓<span>Tasks</span></a><a class="navlink " href="daily.html">☀<span>Daily Rewards</span></a><a class="navlink " href="wallet.html">▣<span>Wallet</span></a><a class="navlink " href="withdraw.html">↗<span>Withdraw</span></a><a class="navlink " href="referrals.html">♧<span>Referrals</span></a><a class="navlink " href="leaderboard.html">♕<span>Leaderboard</span></a><a class="navlink active" href="notifications.html">🔔<span>Notifications</span></a><a class="navlink " href="profile.html">👤<span>Profile</span></a><a class="navlink " href="settings.html">⚙<span>Settings</span></a><a class="navlink " href="support.html">?<span>Support</span></a><div class="sidebottom"><a class="community" href="https://t.me/ZyntravaOfficial" target="_blank"><b>📢 ZYNTRAVA OFFICIAL</b>Join our official community</a></div></aside><main><header class="top"><div><div class="eyebrow">✦ ACCOUNT UPDATES</div><h1>Notifications</h1></div><div class="topactions"><button class="iconbtn" onclick="document.documentElement.classList.toggle('mute')">🔊</button><a class="avatarbtn" href="profile.html">👤 <span data-user>Member</span></a></div></header><section class="card"><div class="sectionhead"><h2>Account notifications</h2><div style="display:flex;gap:8px;align-items:center"><button class="btn secondary" style="padding:8px 12px" onclick="markAllRead()">Mark all read</button><span class="tag">LIVE</span></div></div><div id="notificationList" class="list"><div class="empty">Loading notifications…</div></div></section><div class="footer">© 2026 ZYNTRAVA • <a href="https://t.me/ZyntravaOfficial" target="_blank">Official Channel</a> • <a href="https://t.me/Zyntrava" target="_blank">Support @Zyntrava</a></div></main></div><nav class="mobile"><a href="dashboard.html"><i>⌂</i>Home</a><a href="tasks.html"><i>✓</i>Tasks</a><a href="wallet.html"><i>▣</i>Wallet</a><a href="profile.html"><i>👤</i>Profile</a></nav><script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script><script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script><script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-database-compat.js"></script><script src="firebase-config.js"></script><script src="sound-engine.js"></script><script src="app.js"></script>
+<script>
+(function(){
+ let currentUid=null;
+ window.markAllRead=async function(){
+   if(!currentUid) return;
+   const snap=await firebase.database().ref('notifications/'+currentUid).once('value');
+   const data=snap.val()||{}; const updates={};
+   Object.keys(data).forEach(k=>updates[k+'/read']=true);
+   if(Object.keys(updates).length) await firebase.database().ref().update(updates);
+ };
+ function esc(v){return String(v||'').replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));}
+ firebase.auth().onAuthStateChanged(user=>{
+   if(!user) return; currentUid=user.uid;
+   const ref=firebase.database().ref('notifications/'+user.uid).limitToLast(100);
+   ref.on('value',snap=>{
+     const items=Object.entries(snap.val()||{}).map(([id,n])=>({id,...n})).sort((a,b)=>Number(b.createdAt||0)-Number(a.createdAt||0));
+     const list=document.getElementById('notificationList');
+     if(!items.length){list.innerHTML='<div class="empty">No account notifications yet. Updates about rewards, withdrawals and task reviews will appear here.</div>';return;}
+     list.innerHTML=items.map(n=>`<div class="listrow" style="${n.read?'opacity:.72':''}"><div><b>${esc(n.title||'Platform update')}</b><small>${esc(n.message||'You have a new account update.')}</small><small>${n.createdAt?new Date(Number(n.createdAt)).toLocaleString():'Recently'}</small></div>${n.read?'<span class="tag">READ</span>':'<span class="tag">NEW</span>'}</div>`).join('');
+   });
+ });
+})();
+</script></body></html>

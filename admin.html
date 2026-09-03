@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ZYNTRAVA • Admin Control Center</title><link rel="stylesheet" href="style.css">
+<style>
+.admin-wrap{max-width:1250px;margin:auto;padding:22px}.admin-tabs{display:flex;gap:8px;flex-wrap:wrap;margin:18px 0}.admin-tabs button{border:1px solid rgba(255,255,255,.1);background:#101d31;color:#cbd6e5;padding:10px 14px;border-radius:10px;cursor:pointer}.admin-tabs button.active{background:#d8b66b;color:#101820;font-weight:800}.admin-section{display:none}.admin-section.active{display:block}.table-card{overflow:auto}.op-row{display:flex;justify-content:space-between;gap:14px;align-items:center;padding:16px 0;border-bottom:1px solid rgba(255,255,255,.08)}.op-row:last-child{border-bottom:0}.status{display:inline-block;padding:4px 9px;border-radius:999px;font-size:11px;font-weight:800;background:#18304a;color:#b9d5ef}.status.active{background:#173b2a;color:#8de0b2}.status.paused{background:#45351b;color:#efd281}.status.ended{background:#41232b;color:#f3a2ae}@media(max-width:700px){.op-row{flex-direction:column;align-items:flex-start}}
+</style></head>
+<body><main class="admin-wrap">
+<div class="top"><div><div class="eyebrow">SECURE CONTROL CENTER</div><h1>ZYNTRAVA Admin</h1></div><div style="display:flex;gap:8px"><a class="btn ghost" href="dashboard.html">Platform</a><button class="btn ghost" onclick="logoutAdmin()">Logout</button></div></div>
+<div class="notice" id="adminNotice">Manage earning opportunities, member submissions and reward verification through the secure server API.</div>
+
+<div class="grid grid4" style="margin-top:16px">
+<div class="card metric"><small>ACTIVE OPPORTUNITIES</small><b id="activeTasks">0</b></div>
+<div class="card metric"><small>PENDING REVIEWS</small><b id="pendingTasks">0</b></div>
+<div class="card metric"><small>PENDING WITHDRAWALS</small><b id="pending">0</b></div>
+<div class="card metric"><small>MEMBERS</small><b id="users">0</b></div>
+</div>
+
+<div class="admin-tabs">
+<button class="active" onclick="showTab('create',this)">Create Opportunity</button>
+<button onclick="showTab('opportunities',this)">Manage Opportunities</button>
+<button onclick="showTab('submissions',this)">Task Submissions</button>
+<button onclick="showTab('withdrawals',this)">Withdrawals</button>
+<button onclick="showTab('notifications',this)">Notifications</button>
+</div>
+
+<section id="tab-create" class="admin-section active card">
+<div class="sectionhead"><h2>Create Verified Opportunity</h2></div>
+<div class="grid grid2">
+<div class="field"><label>Title</label><input id="taskTitle" placeholder="Campaign or task title"></div>
+<div class="field"><label>Reward Points</label><input id="taskReward" type="number" min="1" placeholder="100"></div>
+<div class="field"><label>Category</label><input id="taskCategory" placeholder="Social, Testing, Research"></div>
+<div class="field"><label>Task URL (optional)</label><input id="taskUrl" placeholder="https://"></div>
+</div>
+<div class="field"><label>Instructions and proof requirements</label><textarea id="taskInstructions" rows="5" placeholder="Explain exactly what the member must do and what proof is required."></textarea></div>
+<button class="btn" onclick="createTask()">Publish Opportunity</button>
+</section>
+
+<section id="tab-opportunities" class="admin-section card table-card">
+<div class="sectionhead"><h2>Manage Opportunities</h2><button class="btn ghost" onclick="load()">Refresh</button></div>
+<div id="opportunityList" class="list"><div class="empty">Loading…</div></div>
+</section>
+
+<section id="tab-submissions" class="admin-section card table-card">
+<div class="sectionhead"><h2>Task Submissions</h2></div><div id="submissionList" class="list"><div class="empty">Loading…</div></div>
+</section>
+
+<section id="tab-withdrawals" class="admin-section card table-card">
+<div class="sectionhead"><h2>Withdrawal Requests</h2></div><div id="withdrawalList" class="list"><div class="empty">Loading…</div></div>
+</section>
+
+<section id="tab-notifications" class="admin-section card">
+<div class="sectionhead"><h2>Member Notification</h2></div>
+<div class="grid grid2"><div class="field"><label>Member UID</label><input id="notifyUid" placeholder="Firebase UID"></div><div class="field"><label>Type</label><select id="notifyType"><option value="info">Info</option><option value="reward">Reward</option><option value="task">Task</option><option value="withdrawal">Withdrawal</option></select></div></div>
+<div class="field"><label>Title</label><input id="notifyTitle" placeholder="Notification title"></div>
+<div class="field"><label>Message</label><textarea id="notifyMessage" rows="3" placeholder="Message for this member"></textarea></div>
+<button class="btn ghost" onclick="sendNotification()">Send Notification</button>
+</section>
+</main>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-database-compat.js"></script>
+<script src="firebase-config.js"></script>
+<script>
+let adminUser=null;
+function esc(v){return String(v??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]))}
+function showTab(name,btn){document.querySelectorAll('.admin-section').forEach(x=>x.classList.remove('active'));document.getElementById('tab-'+name).classList.add('active');document.querySelectorAll('.admin-tabs button').forEach(x=>x.classList.remove('active'));btn.classList.add('active')}
+async function api(path,body){const token=await adminUser.getIdToken();const r=await fetch('/api?action='+encodeURIComponent(path),{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:JSON.stringify(body||{})});const d=await r.json().catch(()=>({}));if(!r.ok||d.ok===false)throw new Error(d.error||'Request failed');return d}
+function badge(s){return `<span class="status ${esc(s||'')}">${esc((s||'unknown').toUpperCase())}</span>`}
+async function load(){
+ if(!adminUser)return;
+ const d=await api('admin-dashboard',{});
+ const w=(d.withdrawals||[]).sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
+ const s=(d.submissions||[]).sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
+ const t=(d.tasks||[]).sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
+ pending.textContent=w.filter(x=>x.status==='pending').length;
+ pendingTasks.textContent=s.filter(x=>x.status==='pending').length;
+ activeTasks.textContent=t.filter(x=>x.status==='active').length;
+ users.textContent=d.userCount||0;
+
+ opportunityList.innerHTML=t.length?t.map(x=>`<div class="op-row"><div><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><b>${esc(x.title)}</b>${badge(x.status)}</div><p class="muted">${esc(x.category||'Opportunity')} • +${esc(x.rewardPoints)} points</p><small class="muted">${esc(x.instructions||'')}</small></div><div style="display:flex;gap:7px;flex-wrap:wrap">${x.status!=='active'?`<button class="btn green" onclick="updateTask('${x.id}','active')">Activate</button>`:''}${x.status==='active'?`<button class="btn ghost" onclick="updateTask('${x.id}','paused')">Pause</button>`:''}${x.status!=='ended'?`<button class="btn ghost" onclick="updateTask('${x.id}','ended')">End</button>`:''}</div></div>`).join(''):'<div class="empty">No opportunities created yet.</div>';
+
+ submissionList.innerHTML=s.length?s.map(x=>`<div class="row"><div><b>${esc(x.title||'Task')} • +${esc(x.rewardPoints)} pts</b><p class="muted">${esc(x.memberId||'Member')} • ${esc(x.status||'')} • Proof: ${esc(x.proof||'')}</p></div><div>${x.status==='pending'?`<button class="btn green" onclick="taskStatus('${x.id}','approved')">Approve & Credit</button> <button class="btn ghost" onclick="taskStatus('${x.id}','rejected')">Reject</button>`:badge(x.status)}</div></div>`).join(''):'<div class="empty">No task submissions.</div>';
+
+ withdrawalList.innerHTML=w.length?w.map(x=>`<div class="row"><div><b>${esc(x.memberId||'Member')} • ${esc(x.amount)} ${esc(x.country||'')}</b><p class="muted">${esc(x.method||'')} • ${esc(x.status||'')} • ${esc(x.account||'')}</p></div><div>${x.status==='pending'?`<button class="btn green" onclick="withdrawStatus('${x.id}','approved')">Approve</button> <button class="btn ghost" onclick="withdrawStatus('${x.id}','rejected')">Reject</button>`:''}${x.status==='approved'?`<button class="btn" onclick="withdrawStatus('${x.id}','paid')">Mark Paid</button>`:''}</div></div>`).join(''):'<div class="empty">No withdrawal requests.</div>';
+}
+async function updateTask(id,status){try{await api('admin-update-task',{id,status});load()}catch(e){alert(e.message)}}
+async function withdrawStatus(id,status){try{const note=status==='rejected'?prompt('Rejection reason (optional):')||'':'';await api('admin-withdraw-status',{id,status,note});load()}catch(e){alert(e.message)}}
+async function taskStatus(id,status){try{const note=status==='rejected'?prompt('Rejection reason (optional):')||'':'';await api('admin-task-status',{id,status,note});load()}catch(e){alert(e.message)}}
+async function createTask(){try{const title=taskTitle.value.trim(),reward=Number(taskReward.value),category=taskCategory.value.trim(),instructions=taskInstructions.value.trim(),url=taskUrl.value.trim();if(!title||!Number.isFinite(reward)||reward<=0||!instructions)throw new Error('Title, positive reward points and instructions are required.');if(url&&!/^https?:\/\//i.test(url))throw new Error('Task URL must start with https:// or http://');await api('admin-create-task',{title,rewardPoints:reward,category,instructions,url,countries:[]});taskTitle.value=taskReward.value=taskCategory.value=taskInstructions.value=taskUrl.value='';alert('Opportunity published successfully. Members can now see it in the Earn Center.');load();document.querySelectorAll('.admin-tabs button')[1].click()}catch(e){alert(e.message)}}
+async function sendNotification(){try{await api('admin-notification',{uid:notifyUid.value.trim(),title:notifyTitle.value.trim(),message:notifyMessage.value.trim(),type:notifyType.value});notifyUid.value=notifyTitle.value=notifyMessage.value='';alert('Notification sent.')}catch(e){alert(e.message)}}
+async function logoutAdmin(){if(confirm('Log out of admin?')){await firebase.auth().signOut();location.href='index.html'}}
+firebase.auth().onAuthStateChanged(async u=>{if(!u){location.href='index.html';return}adminUser=u;try{await load()}catch(e){adminNotice.textContent='Admin authorization failed: '+e.message}})
+</script></body></html>
