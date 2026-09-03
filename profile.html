@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ZYNTRAVA • Profile</title><link rel="stylesheet" href="style.css">
+<style>
+.profile-grid{display:grid;grid-template-columns:300px 1fr;gap:18px}.identity{text-align:center;padding:28px}.profile-avatar{width:112px;height:112px;border-radius:50%;margin:0 auto 14px;display:grid;place-items:center;font-size:40px;font-weight:900;background:linear-gradient(135deg,#d8b66b,#6d4d18);color:#07111d;overflow:hidden;border:4px solid rgba(255,255,255,.12)}.profile-avatar img{width:100%;height:100%;object-fit:cover}.upload-btn{display:inline-flex;align-items:center;justify-content:center;margin:8px auto 18px;padding:9px 13px;border-radius:10px;border:1px solid rgba(216,182,107,.35);color:#e6c77e;cursor:pointer}.upload-btn input{display:none}.completion{margin-top:18px;padding:14px;border-radius:12px;background:rgba(216,182,107,.08);border:1px solid rgba(216,182,107,.16)}@media(max-width:760px){.profile-grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body data-page="profile"><div class="app">
+<aside class="sidebar">
+<a class="brand" href="dashboard.html"><div class="orb">Z</div><div><b>ZYNTRAVA</b><small>GLOBAL REWARDS NETWORK</small></div></a>
+<div class="navlabel">PLATFORM</div>
+<a class="navlink" href="dashboard.html">⌂<span>Dashboard</span></a><a class="navlink" href="tasks.html">✓<span>Tasks</span></a><a class="navlink" href="daily.html">☀<span>Daily Rewards</span></a><a class="navlink" href="spin.html">◉<span>Daily Spin</span></a><a class="navlink" href="wallet.html">▣<span>Wallet</span></a><a class="navlink" href="referrals.html">♧<span>Referrals</span></a><a class="navlink" href="leaderboard.html">♕<span>Leaderboard</span></a><a class="navlink" href="notifications.html">🔔<span>Notifications</span></a><a class="navlink" href="settings.html">⚙<span>Settings</span></a><a class="navlink" href="support.html">?<span>Support</span></a><a class="navlink" href="withdraw.html">↗<span>Withdraw</span></a><a class="navlink active" href="profile.html">👤<span>Profile</span></a>
+<div class="sidebottom"><a class="community" href="https://t.me/ZyntravaOfficial" target="_blank"><b>✦ ZYNTRAVA OFFICIAL</b>Join our official community</a></div>
+</aside>
+<main>
+<header class="top"><div><div class="eyebrow">MEMBER IDENTITY</div><h1>My Profile</h1></div><div class="topactions"><a class="avatarbtn" href="profile.html">👤 <span data-user>Member</span></a></div></header>
+<section class="profile-grid">
+<div class="card identity">
+<div class="profile-avatar" id="profileAvatar">Z</div>
+<label class="upload-btn">Change photo<input id="avatarFile" type="file" accept="image/*"></label>
+<h2 data-user>Zyntrava Member</h2>
+<p class="muted">Member ID</p><b id="memberId">—</b>
+<div class="completion"><b>Profile completion reward</b><p class="muted">Complete your name, country, bio and profile picture once to unlock the one-time ZN reward.</p></div>
+</div>
+<section class="card form">
+<div class="tag">PROFILE SETTINGS</div><h2>Personal details</h2>
+<form id="profileForm" onsubmit="return false">
+<div class="field"><label>Display name</label><input id="displayName" maxlength="50" placeholder="Your public display name"></div>
+<div class="field"><label>Email</label><div class="card" id="email"></div></div>
+<div class="field"><label>Country</label><select id="country"><option value="PK">Pakistan</option><option value="US">United States</option><option value="GB">United Kingdom</option><option value="IN">India</option><option value="AE">United Arab Emirates</option><option value="DEFAULT">Other / Global</option></select></div>
+<div class="field"><label>Short bio</label><textarea id="bio" maxlength="160" rows="4" placeholder="Tell the Zyntrava community a little about yourself"></textarea></div>
+<button class="btn" id="saveProfileBtn" type="button" onclick="saveProfessionalProfile()">Save Profile</button>
+</form>
+</section>
+</section>
+<div class="footer">© 2026 ZYNTRAVA • ZN is the platform reward unit.</div>
+</main></div>
+<nav class="mobile"><a href="dashboard.html"><i>⌂</i>Home</a><a href="tasks.html"><i>✓</i>Tasks</a><a href="wallet.html"><i>▣</i>Wallet</a><a href="withdraw.html"><i>↗</i>Withdraw</a><a class="active" href="profile.html"><i>👤</i>Profile</a></nav>
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script><script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script><script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-database-compat.js"></script><script src="firebase-config.js"></script><script src="sound-engine.js"></script><script src="app.js"></script>
+</body></html>
