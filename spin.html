@@ -1,0 +1,299 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ZYNTRAVA • Daily Spin</title>
+<link rel="stylesheet" href="style.css">
+<style>
+:root{
+  --gold:#d8b66b;
+  --gold2:#f3d994;
+  --ink:#07111f;
+  --panel:#101d31;
+  --line:rgba(216,182,107,.22);
+  --muted:#91a0b6;
+}
+.spin-premium{
+  position:relative;overflow:hidden;
+  background:
+    radial-gradient(circle at 50% 25%,rgba(216,182,107,.12),transparent 26%),
+    radial-gradient(circle at 10% 0%,rgba(63,123,181,.13),transparent 35%),
+    linear-gradient(135deg,#101d31,#0b1627 55%,#0b1c28);
+  border:1px solid rgba(255,255,255,.07);
+  border-radius:22px;padding:34px 24px 30px;
+}
+.spin-premium:before{
+ content:"";position:absolute;inset:0;pointer-events:none;
+ background:linear-gradient(110deg,transparent 15%,rgba(255,255,255,.025) 50%,transparent 80%);
+}
+.spin-head{text-align:center;position:relative;z-index:1}
+.spin-kicker{font-size:10px;letter-spacing:2.3px;color:var(--gold);font-weight:800;margin-bottom:10px}
+.spin-head h2{margin:0;font-size:27px;letter-spacing:-.5px}
+.spin-head p{max-width:580px;margin:10px auto 0;color:var(--muted);font-size:13px;line-height:1.55}
+
+.wheel-stage{display:grid;place-items:center;padding:30px 0 18px;position:relative;z-index:1}
+.wheel-shell{
+ width:min(390px,86vw);aspect-ratio:1;position:relative;border-radius:50%;
+ padding:10px;
+ background:linear-gradient(135deg,#6d5525,#f4dda0,#8d6b2c,#f7e7b6,#75571f);
+ box-shadow:0 0 0 1px rgba(255,255,255,.12),0 22px 60px rgba(0,0,0,.42),0 0 42px rgba(216,182,107,.12);
+}
+.wheel-shell:before{
+ content:"";position:absolute;inset:4px;border-radius:50%;
+ border:1px solid rgba(255,255,255,.35);pointer-events:none;z-index:3;
+}
+.wheel{
+ width:100%;height:100%;border-radius:50%;position:relative;overflow:hidden;
+ background:conic-gradient(
+ #17344a 0deg 45deg,
+ #0e2435 45deg 90deg,
+ #1b3b4d 90deg 135deg,
+ #112b3e 135deg 180deg,
+ #17344a 180deg 225deg,
+ #0e2435 225deg 270deg,
+ #1b3b4d 270deg 315deg,
+ #112b3e 315deg 360deg
+ );
+ box-shadow:inset 0 0 35px rgba(0,0,0,.55);
+ transition:transform 3.8s cubic-bezier(.12,.78,.18,1);
+}
+.wheel:before{
+ content:"";position:absolute;inset:0;border-radius:50%;
+ background:repeating-conic-gradient(from 0deg,transparent 0deg 43.7deg,rgba(216,182,107,.52) 44deg 45deg);
+ pointer-events:none;
+}
+.wheel:after{
+ content:"Z";position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
+ width:94px;height:94px;border-radius:50%;display:grid;place-items:center;
+ color:#f6df9c;font-size:36px;font-weight:900;letter-spacing:-2px;
+ background:radial-gradient(circle at 35% 25%,#203955,#091522 70%);
+ border:7px solid #cda85d;
+ box-shadow:0 0 0 5px #101d2c,0 10px 30px rgba(0,0,0,.5),inset 0 0 20px rgba(255,255,255,.05);
+ z-index:4;
+}
+.label{
+ position:absolute;left:50%;top:50%;width:72px;text-align:center;
+ color:#f4d98f;font-size:15px;font-weight:850;letter-spacing:.2px;
+ text-shadow:0 2px 5px #000;z-index:2;
+}
+.l1{transform:translate(-50%,-50%) rotate(0deg) translateY(-142px)}
+.l2{transform:translate(-50%,-50%) rotate(45deg) translateY(-142px) rotate(-45deg)}
+.l3{transform:translate(-50%,-50%) rotate(90deg) translateY(-142px) rotate(-90deg)}
+.l4{transform:translate(-50%,-50%) rotate(135deg) translateY(-142px) rotate(-135deg)}
+.l5{transform:translate(-50%,-50%) rotate(180deg) translateY(-142px) rotate(-180deg)}
+.l6{transform:translate(-50%,-50%) rotate(225deg) translateY(-142px) rotate(-225deg)}
+.l7{transform:translate(-50%,-50%) rotate(270deg) translateY(-142px) rotate(-270deg)}
+.l8{transform:translate(-50%,-50%) rotate(315deg) translateY(-142px) rotate(-315deg)}
+
+.pointer{
+ position:absolute;top:-13px;left:50%;transform:translateX(-50%);z-index:7;
+ width:52px;height:62px;filter:drop-shadow(0 8px 8px rgba(0,0,0,.45));
+}
+.pointer:before{
+ content:"";position:absolute;left:50%;transform:translateX(-50%);
+ width:52px;height:52px;background:linear-gradient(135deg,#fff1b6,#c49438);
+ clip-path:polygon(50% 100%,0 0,100% 0);border-radius:4px;
+}
+.pointer:after{
+ content:"";position:absolute;left:50%;top:0;transform:translateX(-50%);
+ width:12px;height:12px;border-radius:50%;background:#fff0af;box-shadow:0 0 14px #e9bf62;
+}
+.spin-copy{text-align:center;position:relative;z-index:1}
+.spin-result{min-height:30px;font-size:17px;font-weight:800;color:#eef4fb}
+.spin-status{min-height:23px;margin-top:6px;color:var(--muted);font-size:13px}
+.spin-action{text-align:center;margin-top:18px;position:relative;z-index:1}
+#spinBtn{
+ border:0;border-radius:12px;padding:15px 40px;min-width:180px;
+ color:#15110a;font-size:14px;font-weight:900;letter-spacing:.8px;text-transform:uppercase;
+ background:linear-gradient(135deg,#f4dfa2,#c89b46);
+ box-shadow:0 10px 25px rgba(0,0,0,.32),inset 0 1px 0 rgba(255,255,255,.55);
+ cursor:pointer;
+}
+#spinBtn:hover{transform:translateY(-1px);filter:brightness(1.04)}
+#spinBtn:disabled{opacity:.55;cursor:not-allowed;transform:none}
+.spin-info{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:18px}
+.spin-info .metric{
+ text-align:center;padding:20px 12px;border:1px solid var(--line);
+ background:linear-gradient(145deg,rgba(22,36,57,.9),rgba(9,19,33,.95));
+ border-radius:16px;
+}
+.spin-info small{display:block;color:#7f8da2;font-size:10px;letter-spacing:1.4px;margin-bottom:8px}
+.spin-info b{display:block;color:#f0d78f;font-size:22px}
+.spin-info span{display:block;color:var(--muted);font-size:11px;margin-top:5px}
+@media(max-width:650px){
+ .spin-premium{padding:26px 14px 22px;border-radius:16px}
+ .spin-head h2{font-size:23px}
+ .wheel-shell{width:min(330px,88vw)}
+ .l1{transform:translate(-50%,-50%) rotate(0deg) translateY(-120px)}
+ .l2{transform:translate(-50%,-50%) rotate(45deg) translateY(-120px) rotate(-45deg)}
+ .l3{transform:translate(-50%,-50%) rotate(90deg) translateY(-120px) rotate(-90deg)}
+ .l4{transform:translate(-50%,-50%) rotate(135deg) translateY(-120px) rotate(-135deg)}
+ .l5{transform:translate(-50%,-50%) rotate(180deg) translateY(-120px) rotate(-180deg)}
+ .l6{transform:translate(-50%,-50%) rotate(225deg) translateY(-120px) rotate(-225deg)}
+ .l7{transform:translate(-50%,-50%) rotate(270deg) translateY(-120px) rotate(-270deg)}
+ .l8{transform:translate(-50%,-50%) rotate(315deg) translateY(-120px) rotate(-315deg)}
+ .spin-info{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body data-page="spin">
+<div class="app">
+<aside class="sidebar">
+<a class="brand" href="dashboard.html"><div class="orb">Z</div><div><b>ZYNTRAVA</b><small>GLOBAL REWARDS NETWORK</small></div></a>
+<div class="navlabel">PLATFORM</div>
+<a class="navlink" href="dashboard.html">⌂<span>Dashboard</span></a>
+<a class="navlink" href="tasks.html">✓<span>Tasks</span></a>
+<a class="navlink" href="daily.html">☀<span>Daily Rewards</span></a>
+<a class="navlink active" href="spin.html">◉<span>Daily Spin</span></a>
+<a class="navlink" href="wallet.html">▣<span>Wallet</span></a>
+<a class="navlink" href="withdraw.html">↗<span>Withdraw</span></a>
+<a class="navlink" href="referrals.html">♧<span>Referrals</span></a>
+<a class="navlink" href="leaderboard.html">♕<span>Leaderboard</span></a>
+<a class="navlink" href="notifications.html">🔔<span>Notifications</span></a>
+<a class="navlink" href="profile.html">👤<span>Profile</span></a>
+<a class="navlink" href="settings.html">⚙<span>Settings</span></a>
+<a class="navlink" href="support.html">?<span>Support</span></a>
+<div class="sidebottom"><a class="community" href="https://t.me/ZyntravaOfficial" target="_blank"><b>✦ ZYNTRAVA OFFICIAL</b>Join our official community</a></div>
+</aside>
+
+<main>
+<header class="top">
+<div><div class="eyebrow">REWARDS CENTER</div><h1>Daily Spin</h1></div>
+<div class="topactions"><a class="avatarbtn" href="profile.html">👤 <span data-user>Member</span></a></div>
+</header>
+
+<section class="spin-premium">
+<div class="spin-head">
+<div class="spin-kicker">DAILY REWARD EVENT</div>
+<h2>One spin. One verified reward.</h2>
+<p>Your result is processed through the platform reward system and automatically recorded in your wallet history.</p>
+</div>
+
+<div class="wheel-stage">
+<div class="wheel-shell">
+<div class="pointer"></div>
+<div id="wheel" class="wheel">
+<span class="label l1">2 ZN</span>
+<span class="label l2">5 ZN</span>
+<span class="label l3">10 ZN</span>
+<span class="label l4">3 ZN</span>
+<span class="label l5">15 ZN</span>
+<span class="label l6">4 ZN</span>
+<span class="label l7">8 ZN</span>
+<span class="label l8">6 ZN</span>
+</div>
+</div>
+</div>
+
+<div class="spin-copy">
+<div id="spinResult" class="spin-result">Your daily spin is ready.</div>
+<div id="spinStatus" class="spin-status">Checking your account status…</div>
+</div>
+<div class="spin-action"><button id="spinBtn" onclick="secureSpin()">Spin Now</button></div>
+</section>
+
+<section class="spin-info">
+<div class="metric"><small>DAILY LIMIT</small><b>1 Spin</b><span>One attempt every day</span></div>
+<div class="metric"><small>REWARD RANGE</small><b>2–15 ZN</b><span>Verified ZN reward per spin</span></div>
+<div class="metric"><small>VERIFICATION</small><b>Secure</b><span>Recorded by the platform</span></div>
+</section>
+
+<div class="footer">© 2026 ZYNTRAVA • Daily rewards are subject to platform verification.</div>
+</main>
+</div>
+
+<nav class="mobile">
+<a href="dashboard.html"><i>⌂</i>Home</a><a href="tasks.html"><i>✓</i>Tasks</a><a class="active" href="spin.html"><i>◉</i>Spin</a><a href="wallet.html"><i>▣</i>Wallet</a><a href="profile.html"><i>👤</i>Profile</a>
+</nav>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-database-compat.js"></script>
+<script src="firebase-config.js"></script>
+<script src="sound-engine.js"></script>
+<script src="app.js"></script>
+
+<script>
+
+let spinning=false;
+
+function todayKey(){return new Date().toISOString().slice(0,10)}
+
+async function refreshSpinState(){
+  const status=document.getElementById('spinStatus');
+  const btn=document.getElementById('spinBtn');
+  if(!window.ZDB || !window.Z?.uid){ status.textContent='Loading account…'; return; }
+  try{
+    const snap=await ZDB.ref('users/'+Z.uid+'/lastSpin').once('value');
+    if(snap.val()===todayKey()){
+      status.textContent='Today’s spin has already been used. Come back after the next daily reset.';
+      btn.disabled=true;
+      btn.textContent='Spin Used Today';
+      document.getElementById('spinResult').textContent='Daily limit reached ✓';
+    }else{
+      status.textContent='Your secure daily spin is available.';
+      btn.disabled=false;
+    }
+  }catch(e){status.textContent='Unable to verify spin status.'}
+}
+
+async function secureSpin(){
+  if(spinning)return;
+  const btn=document.getElementById('spinBtn');
+  const wheel=document.getElementById('wheel');
+  const result=document.getElementById('spinResult');
+  const status=document.getElementById('spinStatus');
+
+  spinning=true; btn.disabled=true; btn.textContent='Spinning…';
+  result.textContent='Reward is being verified securely…';
+  status.textContent='Please wait while the platform processes your spin.';
+  sound('click');
+
+  try{
+    // Ask the server for the real reward first, then animate the wheel to the
+    // matching visible segment. The visual result can never disagree with the
+    // credited ZN reward.
+    const d=await api('spin');
+    if (!d || d.ok !== true || d.success !== true || !Number.isFinite(Number(d.reward))) {
+      throw new Error(d?.error || 'Spin server response was invalid.');
+    }
+    // Use the server-authoritative balance immediately; never calculate it in the browser.
+    if (window.syncAccountUI) syncAccountUI(d);
+    const labels=[2,5,10,3,15,4,8,6];
+    const rewardIndex=labels.indexOf(Number(d.reward));
+    const targetIndex=rewardIndex >= 0 ? rewardIndex : 0;
+    const segmentCenter=targetIndex*45+22.5;
+    const finalAngle=360-(segmentCenter);
+    const randomTurns=1440+finalAngle;
+    wheel.style.transform='rotate('+randomTurns+'deg)';
+    await new Promise(r=>setTimeout(r,3800));
+    sound('coin');
+    result.textContent='🎉 You won +'+fmt(d.reward)+' ZN!';
+    status.textContent='Reward credited: +'+fmt(d.reward)+' ZN. Saved to your wallet and transaction history.';
+    btn.textContent='Spin Used Today';
+    // Keep the server-selected reward visible even after the animation ends.
+    if(window.loadAccountSummary) await loadAccountSummary();
+    if(window.Z && window.Z.profile) {
+      window.Z.profile.points = Number(d.points || 0);
+      window.Z.profile.earnedPoints = Number(d.earnedPoints || 0);
+    }
+  }catch(e){
+    wheel.style.transform='rotate(0deg)';
+    result.textContent='Spin unavailable';
+    status.textContent=e.message||'Please try again later.';
+    btn.disabled=false;
+    btn.textContent='Spin Now';
+    sound('error');
+  }finally{
+    spinning=false;
+  }
+}
+
+document.addEventListener('DOMContentLoaded',()=>{
+  setTimeout(refreshSpinState,900);
+});
+
+</script>
+</body>
+</html>
