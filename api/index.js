@@ -367,74 +367,484 @@ async 'cpx-surveys'(req, res) { return await handleCpxSurveys(req, res); },
     return send(res, 200, { ok: true });
   },
 
-  async 'claim-daily'(req, res) {
-    const u = await auth(req), key = todayKey();
-    const reward = Number(process.env.DAILY_REWARD_POINTS || 10);
-    if (!Number.isFinite(reward) || reward <= 0) throw Object.assign(new Error('Daily reward configuration is invalid'), { status: 503 });
-    const ref = db().ref('users/' + u.uid);
-    const claimRef = db().ref('dailyClaims/' + u.uid + '/' + key);
-    const ledgerRef = db().ref('transactions/' + u.uid + '/daily_' + key);
-    const [beforeSnap, claimSnap, ledgerSnap] = await Promise.all([ref.once('value'), claimRef.once('value'), ledgerRef.once('value')]);
-    const before = beforeSnap.val() || {};
+    async 'claim-daily'(req, res) {
+    const u = await auth(req);
+    const key = todayKey();
 
-    // Idempotent repair for older interrupted claims. If today's claim marker
-    // exists but its verified claim/ledger evidence is missing, restore exactly
-    // one reward before returning the already-claimed state.
-    if (before.lastDailyClaim === key && !claimSnap.exists() && !ledgerSnap.exists()) {
-      const rRepair = await ref.transaction(p => {
-        if (!p || p.lastDailyClaim !== key) return;
-        p.points = Number(p.points || 0) + reward;
-        p.earnedPoints = Number(p.earnedPoints || 0) + reward;
-        return p;
-      });
-      const repaired = rRepair.snapshot?.val?.() || (await ref.once('value')).val() || {};
-      await claimRef.set({ uid: u.uid, date: key, rewardZN: reward, createdAt: admin.database.ServerValue.TIMESTAMP, repaired: true });
-      await ledgerRef.set({ id: ledgerRef.key, type: 'daily', amount: reward, direction: 'credit', status: 'completed', description: 'Daily reward (repaired)', rewardDate: key, createdAt: admin.database.ServerValue.TIMESTAMP });
-      await addNotification(u.uid, 'Daily reward repaired', `+${reward} ZN was restored to your wallet.`, 'reward');
-      return send(res, 200, { ok: true, repaired: true, reward, points: Number(repaired.points || 0), earnedPoints: Number(repaired.earnedPoints || 0), pointsLocked: Number(repaired.pointsLocked || 0), lastDailyClaim: repaired.lastDailyClaim || key });
+    const reward = Number(
+      process.env.DAILY_REWARD_POINTS || 10
+    );
+
+    if (!Number.isFinite(reward) || reward <= 0) {
+      throw Object.assign(
+        new Error('Daily reward configuration is invalid'),
+        { status: 503 }
+      );
     }
 
-    // If a claim record exists but the old deployment never wrote its ledger,
-    // restore the ledger without paying the user twice.
-    if (before.lastDailyClaim === key && claimSnap.exists() && !ledgerSnap.exists()) {
-      const claim = claimSnap.val() || {};
-      const claimReward = Number(claim.rewardZN || reward);
-      if (Number.isFinite(claimReward) && claimReward > 0 && claim.rewardAppliedAt == null) {
-        const rRecover = await ref.transaction(p => {
-          if (!p || p.lastDailyClaim !== key) return;
-          p.points = Number(p.points || 0) + claimReward;
-          p.earnedPoints = Number(p.earnedPoints || 0) + claimReward;
-          return p;
+    const userRef =
+      db().ref('users/' + u.uid);
+
+    const claimRef =
+      db().ref('dailyClaims/' + u.uid + '/' + key);
+
+    const ledgerRef =
+      db().ref('transactions/' + u.uid + '/daily_' + key);
+
+    const [userSnap, claimSnap, ledgerSnap] =
+      await Promise.all([
+        userRef.once('value'),
+        claimRef.once('value'),
+        ledgerRef.once('value')
+      ]);
+
+    const user = userSnap.val() || {};
+
+    /*
+     * OLD BUG RECOVERY
+     *
+     * If today's claim marker exists but the old
+     * deployment never saved the reward evidence,
+     * restore exactly one reward.
+     */
+    if (
+      user.lastDailyClaim === key &&
+      !claimSnap.exists() &&
+      !ledgerSnap.exists()
+    ) {
+
+      const repairTx =
+        await userRef.transaction(profile => {
+
+          if (!profile) return;
+
+          if (profile.lastDailyClaim !== key) {
+            return;
+          }
+
+          profile.points =
+            Number(profile.points || 0) + reward;
+
+          profile.earnedPoints =
+            Number(profile.earnedPoints || 0) + reward;
+
+          return profile;
         });
-        const recovered = rRecover.snapshot?.val?.() || (await ref.once('value')).val() || {};
-        await claimRef.update({ rewardAppliedAt: admin.database.ServerValue.TIMESTAMP, recovered: true });
-        await ledgerRef.set({ id: ledgerRef.key, type: 'daily', amount: claimReward, direction: 'credit', status: 'completed', description: 'Daily reward (recovered)', rewardDate: key, createdAt: claim.createdAt || admin.database.ServerValue.TIMESTAMP, recovered: true });
-        await db().ref('publicProfiles/' + u.uid).update({ displayName: recovered.displayName || 'Member', countryCode: recovered.countryCode || 'Global', earnedPoints: Number(recovered.earnedPoints || 0) });
-        await addNotification(u.uid, 'Daily reward recovered', `+${claimReward} ZN was restored to your wallet.`, 'reward');
-        return send(res, 200, { ok: true, repaired: true, reward: claimReward, points: Number(recovered.points || 0), earnedPoints: Number(recovered.earnedPoints || 0), pointsLocked: Number(recovered.pointsLocked || 0), lastDailyClaim: key });
-      }
-      await ledgerRef.set({ id: ledgerRef.key, type: 'daily', amount: claimReward, direction: 'credit', status: 'completed', description: 'Daily reward (recovered ledger)', rewardDate: key, createdAt: claim.createdAt || admin.database.ServerValue.TIMESTAMP, recovered: true });
-      return send(res, 200, { ok: true, alreadyClaimed: true, reward: 0, points: Number(before.points || 0), earnedPoints: Number(before.earnedPoints || 0), pointsLocked: Number(before.pointsLocked || 0), lastDailyClaim: key, ledgerRecovered: true });
+
+      const repaired =
+        repairTx.snapshot?.val?.() ||
+        (await userRef.once('value')).val() ||
+        {};
+
+      /*
+       * Wallet is already repaired.
+       * These are secondary records only.
+       */
+      try {
+        await withTimeout(
+          claimRef.set({
+            uid: u.uid,
+            date: key,
+            rewardZN: reward,
+            rewardAppliedAt:
+              admin.database.ServerValue.TIMESTAMP,
+            createdAt:
+              admin.database.ServerValue.TIMESTAMP,
+            repaired: true
+          }),
+          5000
+        );
+      } catch (_) {}
+
+      try {
+        await withTimeout(
+          ledgerRef.set({
+            id: ledgerRef.key,
+            type: 'daily',
+            amount: reward,
+            direction: 'credit',
+            status: 'completed',
+            description: 'Daily reward (repaired)',
+            rewardDate: key,
+            createdAt:
+              admin.database.ServerValue.TIMESTAMP,
+            repaired: true
+          }),
+          5000
+        );
+      } catch (_) {}
+
+      try {
+        await withTimeout(
+          db()
+            .ref('publicProfiles/' + u.uid)
+            .update({
+              displayName:
+                repaired.displayName || 'Member',
+              countryCode:
+                repaired.countryCode || 'Global',
+              earnedPoints:
+                Number(repaired.earnedPoints || 0)
+            }),
+          5000
+        );
+      } catch (_) {}
+
+      try {
+        await withTimeout(
+          addNotification(
+            u.uid,
+            'Daily reward repaired',
+            `+${reward} ZN was restored to your wallet.`,
+            'reward'
+          ),
+          5000
+        );
+      } catch (_) {}
+
+      return send(res, 200, {
+        ok: true,
+        success: true,
+        repaired: true,
+        reward,
+
+        points:
+          Number(repaired.points || 0),
+
+        earnedPoints:
+          Number(repaired.earnedPoints || 0),
+
+        pointsLocked:
+          Number(repaired.pointsLocked || 0),
+
+        lastDailyClaim:
+          repaired.lastDailyClaim || key
+      });
     }
 
-    let claimed = false;
-    const r = await ref.transaction(p => {
-      if (!p || p.lastDailyClaim === key) return;
-      claimed = true;
-      p.points = Number(p.points || 0) + reward;
-      p.earnedPoints = Number(p.earnedPoints || 0) + reward;
-      p.lastDailyClaim = key;
-      return p;
-    });
-    const current = r.snapshot?.val?.() || (await ref.once('value')).val() || {};
-    if (!r.committed || !claimed) {
-      return send(res, 200, { ok: true, alreadyClaimed: true, reward: 0, points: Number(current.points || 0), earnedPoints: Number(current.earnedPoints || 0), pointsLocked: Number(current.pointsLocked || 0), lastDailyClaim: current.lastDailyClaim || null });
+    /*
+     * Claim record exists but ledger is missing.
+     * Recover the ledger WITHOUT paying twice.
+     */
+    if (
+      user.lastDailyClaim === key &&
+      claimSnap.exists() &&
+      !ledgerSnap.exists()
+    ) {
+
+      const claim =
+        claimSnap.val() || {};
+
+      const claimReward =
+        Number(claim.rewardZN || reward);
+
+      /*
+       * If rewardAppliedAt is missing, this may be
+       * an interrupted old claim. Credit exactly once.
+       */
+      if (
+        Number.isFinite(claimReward) &&
+        claimReward > 0 &&
+        claim.rewardAppliedAt == null
+      ) {
+
+        const recoverTx =
+          await userRef.transaction(profile => {
+
+            if (!profile) return;
+
+            if (profile.lastDailyClaim !== key) {
+              return;
+            }
+
+            profile.points =
+              Number(profile.points || 0) +
+              claimReward;
+
+            profile.earnedPoints =
+              Number(profile.earnedPoints || 0) +
+              claimReward;
+
+            return profile;
+          });
+
+        const recovered =
+          recoverTx.snapshot?.val?.() ||
+          (await userRef.once('value')).val() ||
+          {};
+
+        try {
+          await withTimeout(
+            claimRef.update({
+              rewardAppliedAt:
+                admin.database.ServerValue.TIMESTAMP,
+              recovered: true
+            }),
+            5000
+          );
+        } catch (_) {}
+
+        try {
+          await withTimeout(
+            ledgerRef.set({
+              id: ledgerRef.key,
+              type: 'daily',
+              amount: claimReward,
+              direction: 'credit',
+              status: 'completed',
+              description:
+                'Daily reward (recovered)',
+              rewardDate: key,
+              createdAt:
+                claim.createdAt ||
+                admin.database.ServerValue.TIMESTAMP,
+              recovered: true
+            }),
+            5000
+          );
+        } catch (_) {}
+
+        try {
+          await withTimeout(
+            db()
+              .ref('publicProfiles/' + u.uid)
+              .update({
+                displayName:
+                  recovered.displayName || 'Member',
+                countryCode:
+                  recovered.countryCode || 'Global',
+                earnedPoints:
+                  Number(
+                    recovered.earnedPoints || 0
+                  )
+              }),
+            5000
+          );
+        } catch (_) {}
+
+        try {
+          await withTimeout(
+            addNotification(
+              u.uid,
+              'Daily reward recovered',
+              `+${claimReward} ZN was restored to your wallet.`,
+              'reward'
+            ),
+            5000
+          );
+        } catch (_) {}
+
+        return send(res, 200, {
+          ok: true,
+          success: true,
+          repaired: true,
+          reward: claimReward,
+
+          points:
+            Number(recovered.points || 0),
+
+          earnedPoints:
+            Number(recovered.earnedPoints || 0),
+
+          pointsLocked:
+            Number(recovered.pointsLocked || 0),
+
+          lastDailyClaim: key
+        });
+      }
+
+      /*
+       * Already fully processed.
+       * Do NOT pay again.
+       */
+      try {
+        await withTimeout(
+          ledgerRef.set({
+            id: ledgerRef.key,
+            type: 'daily',
+            amount: claimReward,
+            direction: 'credit',
+            status: 'completed',
+            description:
+              'Daily reward (recovered ledger)',
+            rewardDate: key,
+            createdAt:
+              claim.createdAt ||
+              admin.database.ServerValue.TIMESTAMP,
+            recovered: true
+          }),
+          5000
+        );
+      } catch (_) {}
+
+      return send(res, 200, {
+        ok: true,
+        success: false,
+        alreadyClaimed: true,
+        reward: 0,
+
+        points:
+          Number(user.points || 0),
+
+        earnedPoints:
+          Number(user.earnedPoints || 0),
+
+        pointsLocked:
+          Number(user.pointsLocked || 0),
+
+        lastDailyClaim: key,
+
+        ledgerRecovered: true
+      });
     }
-    await claimRef.set({ uid: u.uid, date: key, rewardZN: reward, rewardAppliedAt: admin.database.ServerValue.TIMESTAMP, createdAt: admin.database.ServerValue.TIMESTAMP });
-    await ledgerRef.set({ id: ledgerRef.key, type: 'daily', amount: reward, direction: 'credit', status: 'completed', description: 'Daily reward', rewardDate: key, createdAt: admin.database.ServerValue.TIMESTAMP });
-    await db().ref('publicProfiles/' + u.uid).update({ displayName: current.displayName || 'Member', countryCode: current.countryCode || 'Global', earnedPoints: Number(current.earnedPoints || 0) });
-    await addNotification(u.uid, 'Daily reward claimed', `+${reward} ZN added to your wallet.`, 'reward');
-    return send(res, 200, { ok: true, reward, points: Number(current.points || 0), earnedPoints: Number(current.earnedPoints || 0), pointsLocked: Number(current.pointsLocked || 0), lastDailyClaim: current.lastDailyClaim || null });
+
+    /*
+     * NORMAL DAILY CLAIM
+     *
+     * Wallet credit is the primary operation.
+     */
+    let claimed = false;
+
+    const tx =
+      await userRef.transaction(profile => {
+
+        if (!profile) return;
+
+        if (profile.lastDailyClaim === key) {
+          return;
+        }
+
+        claimed = true;
+
+        profile.points =
+          Number(profile.points || 0) + reward;
+
+        profile.earnedPoints =
+          Number(profile.earnedPoints || 0) + reward;
+
+        profile.lastDailyClaim = key;
+
+        return profile;
+      });
+
+    const current =
+      tx.snapshot?.val?.() ||
+      (await userRef.once('value')).val() ||
+      {};
+
+    /*
+     * Another request already claimed it.
+     */
+    if (!tx.committed || !claimed) {
+      return send(res, 200, {
+        ok: true,
+        success: false,
+        alreadyClaimed: true,
+        reward: 0,
+
+        points:
+          Number(current.points || 0),
+
+        earnedPoints:
+          Number(current.earnedPoints || 0),
+
+        pointsLocked:
+          Number(current.pointsLocked || 0),
+
+        lastDailyClaim:
+          current.lastDailyClaim || key
+      });
+    }
+
+    /*
+     * IMPORTANT:
+     *
+     * Wallet credit has already succeeded.
+     * The following writes MUST NOT turn a successful
+     * reward into an "Invalid server response".
+     */
+
+    try {
+      await withTimeout(
+        claimRef.set({
+          uid: u.uid,
+          date: key,
+          rewardZN: reward,
+          rewardAppliedAt:
+            admin.database.ServerValue.TIMESTAMP,
+          createdAt:
+            admin.database.ServerValue.TIMESTAMP
+        }),
+        5000
+      );
+    } catch (_) {}
+
+    try {
+      await withTimeout(
+        ledgerRef.set({
+          id: ledgerRef.key,
+          type: 'daily',
+          amount: reward,
+          direction: 'credit',
+          status: 'completed',
+          description: 'Daily reward',
+          rewardDate: key,
+          createdAt:
+            admin.database.ServerValue.TIMESTAMP
+        }),
+        5000
+      );
+    } catch (_) {}
+
+    try {
+      await withTimeout(
+        db()
+          .ref('publicProfiles/' + u.uid)
+          .update({
+            displayName:
+              current.displayName || 'Member',
+            countryCode:
+              current.countryCode || 'Global',
+            earnedPoints:
+              Number(current.earnedPoints || 0)
+          }),
+        5000
+      );
+    } catch (_) {}
+
+    try {
+      await withTimeout(
+        addNotification(
+          u.uid,
+          'Daily reward claimed',
+          `+${reward} ZN added to your wallet.`,
+          'reward'
+        ),
+        5000
+      );
+    } catch (_) {}
+
+    /*
+     * ALWAYS return valid JSON after wallet success.
+     */
+    return send(res, 200, {
+      ok: true,
+      success: true,
+      alreadyClaimed: false,
+      reward,
+
+      points:
+        Number(current.points || 0),
+
+      earnedPoints:
+        Number(current.earnedPoints || 0),
+
+      pointsLocked:
+        Number(current.pointsLocked || 0),
+
+      lastDailyClaim:
+        current.lastDailyClaim || key
+    });
   },
 
   async 'profile'(req, res) {
@@ -547,19 +957,197 @@ async 'cpx-surveys'(req, res) { return await handleCpxSurveys(req, res); },
   },
 
   async 'spin'(req, res) {
-    const u = await auth(req), key = todayKey();
-    const rewards = (process.env.SPIN_REWARDS || '2,5,10,15').split(',').map(Number).filter(x => Number.isFinite(x) && x > 0);
-    if (!rewards.length) throw Object.assign(new Error('Spin reward configuration is invalid'), { status: 503 });
-    const reward = rewards[Math.floor(Math.random() * rewards.length)];
-    const ref = db().ref('users/' + u.uid); let ok = false;
-    const r = await ref.transaction(p => { if (!p || p.lastSpin === key) return; ok = true; p.lastSpin = key; p.points = Number(p.points || 0) + reward; p.earnedPoints = Number(p.earnedPoints || 0) + reward; return p; });
-    const profile = r.snapshot?.val?.() || (await ref.once('value')).val() || {};
-    if (!r.committed || !ok) return send(res, 409, { ok: false, error: 'You already used today’s spin', points: Number(profile.points || 0), earnedPoints: Number(profile.earnedPoints || 0), pointsLocked: Number(profile.pointsLocked || 0) });
-    const ledgerRef = db().ref('transactions/' + u.uid + '/spin_' + key);
-    await ledgerRef.set({ id: ledgerRef.key, type: 'spin', amount: reward, direction: 'credit', status: 'completed', description: 'Daily promotional spin', rewardDate: key, createdAt: admin.database.ServerValue.TIMESTAMP });
-    await db().ref('publicProfiles/' + u.uid).update({ displayName: profile.displayName || 'Member', countryCode: profile.countryCode || 'Global', earnedPoints: Number(profile.earnedPoints || 0) });
-    await addNotification(u.uid, 'Spin reward', `You received +${reward} ZN.`, 'reward');
-    return send(res, 200, { ok: true, reward, points: Number(profile.points || 0), earnedPoints: Number(profile.earnedPoints || 0), pointsLocked: Number(profile.pointsLocked || 0), lastSpin: profile.lastSpin || null });
+
+    const u = await auth(req);
+    const key = todayKey();
+
+    const rewards = (
+      process.env.SPIN_REWARDS ||
+      '2,5,10,15'
+    )
+      .split(',')
+      .map(Number)
+      .filter(
+        x => Number.isFinite(x) && x > 0
+      );
+
+    if (!rewards.length) {
+      throw Object.assign(
+        new Error(
+          'Spin reward configuration is invalid'
+        ),
+        { status: 503 }
+      );
+    }
+
+    const reward =
+      rewards[
+        Math.floor(
+          Math.random() * rewards.length
+        )
+      ];
+
+    const userRef =
+      db().ref('users/' + u.uid);
+
+    let claimed = false;
+
+    /*
+     * PRIMARY OPERATION:
+     * Credit ZN directly to wallet atomically.
+     */
+    const tx =
+      await userRef.transaction(profile => {
+
+        if (!profile) return;
+
+        if (profile.lastSpin === key) {
+          return;
+        }
+
+        claimed = true;
+
+        profile.lastSpin = key;
+
+        profile.points =
+          Number(profile.points || 0) + reward;
+
+        profile.earnedPoints =
+          Number(profile.earnedPoints || 0) + reward;
+
+        return profile;
+      });
+
+    const current =
+      tx.snapshot?.val?.() ||
+      (await userRef.once('value')).val() ||
+      {};
+
+    /*
+     * Already used today.
+     */
+    if (!tx.committed || !claimed) {
+
+      return send(res, 200, {
+        ok: true,
+        success: false,
+        alreadySpun: true,
+        reward: 0,
+        error:
+          'You already used today’s spin.',
+
+        points:
+          Number(current.points || 0),
+
+        earnedPoints:
+          Number(current.earnedPoints || 0),
+
+        pointsLocked:
+          Number(current.pointsLocked || 0),
+
+        lastSpin:
+          current.lastSpin || key
+      });
+    }
+
+    /*
+     * WALLET CREDIT IS SUCCESSFUL.
+     *
+     * Everything below is secondary.
+     * Failure here MUST NOT produce
+     * "Invalid server response".
+     */
+
+    const ledgerRef =
+      db().ref(
+        'transactions/' +
+        u.uid +
+        '/spin_' +
+        key
+      );
+
+    try {
+
+      await withTimeout(
+        ledgerRef.set({
+          id: ledgerRef.key,
+          type: 'spin',
+          amount: reward,
+          direction: 'credit',
+          status: 'completed',
+          description:
+            'Daily promotional spin',
+          rewardDate: key,
+          createdAt:
+            admin.database.ServerValue.TIMESTAMP
+        }),
+        5000
+      );
+
+    } catch (_) {}
+
+    try {
+
+      await withTimeout(
+        db()
+          .ref('publicProfiles/' + u.uid)
+          .update({
+            displayName:
+              current.displayName || 'Member',
+
+            countryCode:
+              current.countryCode || 'Global',
+
+            earnedPoints:
+              Number(
+                current.earnedPoints || 0
+              )
+          }),
+        5000
+      );
+
+    } catch (_) {}
+
+    try {
+
+      await withTimeout(
+        addNotification(
+          u.uid,
+          'Spin reward',
+          `You received +${reward} ZN.`,
+          'reward'
+        ),
+        5000
+      );
+
+    } catch (_) {}
+
+    /*
+     * FINAL RESPONSE:
+     * Always valid JSON after wallet success.
+     */
+    return send(res, 200, {
+
+      ok: true,
+
+      success: true,
+
+      alreadySpun: false,
+
+      reward,
+
+      points:
+        Number(current.points || 0),
+
+      earnedPoints:
+        Number(current.earnedPoints || 0),
+
+      pointsLocked:
+        Number(current.pointsLocked || 0),
+
+      lastSpin:
+        current.lastSpin || key
+    });
   },
 
   async 'opportunities'(req, res) {
