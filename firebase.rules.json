@@ -1,0 +1,14 @@
+{
+  "rules": {
+    "users": {"$uid": {".read":"auth != null && auth.uid === $uid",".write":false}},
+    "publicProfiles": {".read":"auth != null",".write":false},
+    "tasks": {".read":"auth != null",".write":false},
+    "rewardedCampaigns": {".read":"auth != null",".write":false},
+    "withdrawals": {"$id":{".read":"auth != null && data.child('uid').val() === auth.uid",".write":false}},
+    "transactions": {"$uid":{".read":"auth != null && auth.uid === $uid",".write":false}},
+    "notifications": {"$uid":{".read":"auth != null && auth.uid === $uid",".write":false}},
+    "referrals": {"$uid":{".read":"auth != null && auth.uid === $uid",".write":false}},
+    "submissions": {".read":false,".write":false},
+    "taskSubmissions": {".read":false,".write":false}
+  }
+}

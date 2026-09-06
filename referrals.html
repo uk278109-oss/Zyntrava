@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ZYNTRAVA • Referral Network</title>
+<link rel="stylesheet" href="style.css">
+<style>
+.ref-hero{position:relative;overflow:hidden;background:linear-gradient(135deg,#12253c,#0a1626 58%,#10281f);border:1px solid rgba(216,182,107,.22)}
+.ref-hero:after{content:"";position:absolute;width:300px;height:300px;border-radius:50%;right:-90px;top:-120px;background:radial-gradient(circle,rgba(216,182,107,.18),transparent 68%)}
+.ref-hero>*{position:relative;z-index:1}.ref-link{display:flex;gap:8px;margin-top:18px}.ref-link input{flex:1;min-width:0;background:#08121f;border:1px solid rgba(255,255,255,.12);color:#e9f0f7;border-radius:10px;padding:13px}
+.ref-rule{display:flex;gap:12px;align-items:flex-start;padding:14px 0;border-bottom:1px solid rgba(255,255,255,.07)}.ref-rule:last-child{border:0}.ref-rule i{width:28px;height:28px;border-radius:9px;display:grid;place-items:center;background:rgba(216,182,107,.12);color:#e5c574;font-style:normal;font-weight:900}
+.ref-status{font-size:11px;font-weight:900;letter-spacing:.5px;padding:5px 8px;border-radius:999px}.registered{background:#19324a;color:#a9d5ff}.qualified{background:#153a2a;color:#8ee5b7}.rewarded{background:#4a3920;color:#f1d78c}
+</style>
+</head>
+<body data-page="referrals">
+<div class="app">
+<aside class="sidebar">
+<a class="brand" href="dashboard.html"><div class="orb">Z</div><div><b>ZYNTRAVA</b><small>GLOBAL REWARDS NETWORK</small></div></a>
+<div class="navlabel">PLATFORM</div>
+<a class="navlink" href="dashboard.html">⌂<span>Dashboard</span></a>
+<a class="navlink" href="tasks.html">✓<span>Tasks</span></a>
+<a class="navlink" href="daily.html">☀<span>Daily Rewards</span></a>
+<a class="navlink" href="spin.html">◉<span>Daily Spin</span></a>
+<a class="navlink" href="wallet.html">▣<span>Wallet</span></a>
+<a class="navlink" href="withdraw.html">↗<span>Withdraw</span></a>
+<a class="navlink active" href="referrals.html">♧<span>Referrals</span></a>
+<a class="navlink" href="leaderboard.html">♕<span>Leaderboard</span></a>
+<a class="navlink" href="notifications.html">🔔<span>Notifications</span></a>
+<a class="navlink" href="profile.html">👤<span>Profile</span></a>
+<a class="navlink" href="settings.html">⚙<span>Settings</span></a>
+<a class="navlink" href="support.html">?<span>Support</span></a>
+<div class="sidebottom"><a class="community" href="https://t.me/ZyntravaOfficial" target="_blank"><b>✦ ZYNTRAVA OFFICIAL</b>Join our official community</a></div>
+</aside>
+
+<main>
+<header class="top"><div><div class="eyebrow">NETWORK REWARDS</div><h1>Referral Network</h1></div><div class="topactions"><a class="avatarbtn" href="profile.html">👤 <span data-user>Member</span></a></div></header>
+
+<section class="card ref-hero">
+<div class="tag">VERIFIED MEMBER REFERRALS</div>
+<h2>Grow your network. Earn ZN from qualified referrals.</h2>
+<p>Share your unique Zyntrava link. A referral becomes qualified after completing their first verified opportunity. Rewards are then credited automatically through the secure platform system.</p>
+<div class="ref-link"><input id="refLink" readonly value="Preparing your unique link…"><button class="btn" onclick="copyReferral()">Copy Link</button></div>
+</section>
+
+<section id="referralStats" class="grid grid3" style="margin-top:16px">
+<div class="empty">Loading your referral network…</div>
+</section>
+
+<section class="grid grid2" style="margin-top:16px">
+<div class="card">
+<div class="sectionhead"><h2>How referral rewards work</h2></div>
+<div class="ref-rule"><i>1</i><div><b>Share</b><small class="muted">Send your official Zyntrava referral link to a new member.</small></div></div>
+<div class="ref-rule"><i>2</i><div><b>Register</b><small class="muted">The new account is securely linked to your referral network.</small></div></div>
+<div class="ref-rule"><i>3</i><div><b>Qualify</b><small class="muted">Your referral completes their first approved opportunity.</small></div></div>
+<div class="ref-rule"><i>4</i><div><b>Earn ZN</b><small class="muted">Your referral reward is credited automatically and recorded in activity.</small></div></div>
+</div>
+<div class="card">
+<div class="sectionhead"><h2>Your referral code</h2><span class="tag" id="referralCodeBadge">Loading</span></div>
+<p class="muted">Only new members can be linked to a referral. Self-referrals and duplicate reward credits are blocked.</p>
+<div class="notice">Referral reward qualification is based on verified platform activity, not simply opening a referral link.</div>
+</div>
+</section>
+
+<section class="card" style="margin-top:16px">
+<div class="sectionhead"><h2>Referral activity</h2><button class="btn ghost" onclick="loadReferralStats()">Refresh</button></div>
+<div id="referralList" class="list"><div class="empty">Loading referral activity…</div></div>
+</section>
+
+<div class="footer">© 2026 ZYNTRAVA • ZN is the platform reward unit.</div>
+</main>
+</div>
+
+<nav class="mobile">
+<a href="dashboard.html"><i>⌂</i>Home</a>
+<a href="tasks.html"><i>✓</i>Tasks</a>
+<a class="active" href="referrals.html"><i>♧</i>Refer</a>
+<a href="wallet.html"><i>▣</i>Wallet</a>
+<a href="profile.html"><i>👤</i>Profile</a>
+</nav>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.5/firebase-database-compat.js"></script>
+<script src="firebase-config.js"></script>
+<script src="sound-engine.js"></script>
+<script src="app.js"></script>
+<script>
+let referralData=null;
+function esc(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+async function secureApi(action,body={}){
+ const u=firebase.auth().currentUser;
+ if(!u)throw new Error('Please sign in again.');
+ const token=await u.getIdToken();
+ const r=await fetch('/api?action='+encodeURIComponent(action),{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:JSON.stringify(body)});
+ const d=await r.json().catch(()=>({}));
+ if(!r.ok||d.ok===false)throw new Error(d.error||'Request failed');
+ return d;
+}
+async function loadReferralStats(){
+ try{
+   const d=await secureApi('referral-stats',{});
+   referralData=d;
+   const code=d.referralCode||'—';
+   referralCodeBadge.textContent=code;
+   const link=location.origin+'/index.html?ref='+encodeURIComponent(code);
+   refLink.value=code==='—'?'Preparing your unique link…':link;
+
+   referralStats.innerHTML=`
+   <div class="statcard"><span>Total Referrals</span><b>${d.total||0}</b><small>New members linked to you</small></div>
+   <div class="statcard"><span>Qualified</span><b>${d.qualified||0}</b><small>Completed verified activity</small></div>
+   <div class="statcard"><span>Rewarded</span><b>${d.rewarded||0}</b><small>Referral rewards issued in ZN</small></div>`;
+
+   const rows=d.referrals||[];
+   referralList.innerHTML=rows.length?rows.map(x=>{
+     const status=x.rewardIssued?'REWARDED':x.qualified?'QUALIFIED':'REGISTERED';
+     const cls=x.rewardIssued?'rewarded':x.qualified?'qualified':'registered';
+     return `<div class="listrow"><div><b>${esc(x.displayName||'Zyntrava Member')}</b><small>${x.memberId?esc(x.memberId)+' • ':''}${status==='REGISTERED'?'Pending qualification':status==='QUALIFIED'?'Qualification verified':'Referral reward issued'}</small></div><div class="ref-status ${cls}">${status}</div></div>`;
+   }).join(''):'<div class="empty">No referrals yet. Share your official link to grow your network.</div>';
+ }catch(e){
+   referralList.innerHTML='<div class="empty">Unable to load referral activity. Please refresh.</div>';
+   console.error(e);
+ }
+}
+async function copyReferral(){
+ const link=refLink.value;
+ if(!link||link.includes('Preparing'))return alert('Please wait a moment while your referral link is prepared.');
+ try{await navigator.clipboard.writeText(link);alert('Your Zyntrava referral link was copied.');}
+ catch(e){prompt('Copy your referral link:',link)}
+}
+firebase.auth().onAuthStateChanged(u=>{if(u)loadReferralStats()});
+</script>
+</body></html>
